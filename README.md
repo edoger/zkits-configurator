@@ -1,2 +1,3 @@
-# zkits-configurator
-ZKits Configurator Library
+# ZKits Configurator Library #
+
+This package is a library of ZKits.
