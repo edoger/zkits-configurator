@@ -21,7 +21,7 @@ import (
 )
 
 func TestFileLoader(t *testing.T) {
-	base, err := filepath.Abs("testdata")
+	base, err := filepath.Abs("test")
 	if err != nil {
 		t.Fatal(err)
 	}
