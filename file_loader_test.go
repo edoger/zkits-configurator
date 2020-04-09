@@ -15,20 +15,20 @@
 package configurator
 
 import (
-	"path/filepath"
 	"strings"
 	"testing"
 )
 
 func TestFileLoader(t *testing.T) {
-	base, err := filepath.Abs("test")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	loader := NewFileLoader(base, "txt")
+	loader := NewFileLoader("test")
 	if loader == nil {
 		t.Fatal("NewFileLoader() return nil")
+	}
+	if err := loader.Initialize(); err != nil {
+		t.Fatal(err)
+	}
+	if err := loader.Initialize(); err != nil {
+		t.Fatal(err)
 	}
 
 	next := func() ([]byte, error) { return nil, ErrNotFound }
@@ -41,9 +41,8 @@ func TestFileLoader(t *testing.T) {
 		}
 	}
 
-	loader = NewFileLoader(base, "")
-	if data, err := loader.Load("test", next); err == nil {
-		t.Fatal("FileLoader.Load() return nil error")
+	if data, err := loader.Load("unknown", next); err == nil {
+		t.Fatal("No error")
 	} else {
 		if err != ErrNotFound {
 			t.Fatal(err)
@@ -53,12 +52,7 @@ func TestFileLoader(t *testing.T) {
 		}
 	}
 
-	loader = NewFileLoader(base, "")
-	if data, err := loader.Load("", next); err == nil {
-		t.Fatal("FileLoader.Load() return nil error")
-	} else {
-		if data != nil {
-			t.Fatal(string(data))
-		}
+	if err := NewFileLoader("test/error").Initialize(); err == nil {
+		t.Fatal("No error")
 	}
 }

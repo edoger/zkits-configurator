@@ -18,34 +18,85 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 )
 
+var _ Loader = (*FileLoader)(nil)
+
+// FileLoader type is a built-in configuration file loader.
 type FileLoader struct {
-	dir string // The configuration file storage directory.
-	ext string // The configuration file extension name.
+	// Resource read-write lock.
+	mutex sync.RWMutex
+	// The path of the configuration file directory.
+	directory string
+	// Whether the loader has been initialized.
+	initialized bool
+	// Configuration file path cache.
+	// This is a mapping of names (without extension name) to paths.
+	files map[string][]string
 }
 
-// Create a new file loader.
-// Requires that you specify the directory and file extension for the file search.
-func NewFileLoader(dir, ext string) Loader {
-	return &FileLoader{dir: dir, ext: ext}
+// Create an instance of the configuration file loader.
+func NewFileLoader(directory string) *FileLoader {
+	return &FileLoader{directory: directory}
 }
 
-func (loader *FileLoader) Load(target string, next func() ([]byte, error)) ([]byte, error) {
-	var file string
+// Initialize the current configuration file loader.
+// This method will build a path cache table of all regular configuration
+// files in the directory.
+// This method is idempotent.
+func (loader *FileLoader) Initialize() error {
+	loader.mutex.Lock()
+	defer loader.mutex.Unlock()
 
-	if loader.ext == "" {
-		file = filepath.Join(loader.dir, target)
-	} else {
-		file = filepath.Join(loader.dir, target+"."+loader.ext)
+	if loader.initialized {
+		return nil
 	}
 
-	if data, err := ioutil.ReadFile(file); err == nil {
-		return data, nil
-	} else {
-		if !os.IsNotExist(err) {
-			return nil, err
+	dir, err := filepath.Abs(loader.directory)
+	if err != nil {
+		return err
+	}
+
+	items, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	if loader.files == nil {
+		loader.files = make(map[string][]string, len(items))
+	}
+	for i, j := 0, len(items); i < j; i++ {
+		if items[i].Mode().IsRegular() {
+			// We only care about regular file.
+			name := items[i].Name()
+			if ext := filepath.Ext(name); ext != "" {
+				name = strings.TrimSuffix(name, ext)
+			}
+			loader.files[name] = append(loader.files[name], filepath.Join(dir, items[i].Name()))
 		}
-		return next()
 	}
+
+	loader.initialized = true
+	return nil
+}
+
+// Load a configuration file by the given file name.
+func (loader *FileLoader) Load(target string, next func() ([]byte, error)) ([]byte, error) {
+	loader.mutex.RLock()
+	defer loader.mutex.RUnlock()
+
+	if len(loader.files) > 0 {
+		for _, item := range loader.files[target] {
+			data, err := ioutil.ReadFile(item)
+			if err == nil {
+				return data, nil
+			}
+			if !os.IsNotExist(err) {
+				return nil, err
+			}
+		}
+	}
+
+	return next()
 }
