@@ -15,19 +15,23 @@
 package configurator
 
 import (
+	"bytes"
 	"encoding/json"
 	"encoding/xml"
 
 	"github.com/BurntSushi/toml"
 )
 
+// Client type is the configuration file loading manager.
 type Client struct {
 	// List of registered configuration loaders.
 	loaders []Loader
 }
 
 // Create a new configuration manager client.
-func New() *Client { return new(Client) }
+func New() *Client {
+	return new(Client)
+}
 
 // Register a configuration loader.
 // List of registered configuration item loaders.
@@ -48,6 +52,16 @@ func (c *Client) load(target string, index int) ([]byte, error) {
 		return c.loaders[index].Load(target, func() ([]byte, error) {
 			return c.load(target, next)
 		})
+	}
+}
+
+// Load a configuration file and return a *bytes.Buffer.
+// If the load fails, a nil will be returned.
+func (c *Client) LoadBuffer(target string) (*bytes.Buffer, error) {
+	if data, err := c.Load(target); err != nil {
+		return nil, err
+	} else {
+		return bytes.NewBuffer(data), nil
 	}
 }
 
