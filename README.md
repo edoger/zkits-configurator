@@ -34,6 +34,10 @@ Built-in configuration file binding that supports TOML / JSON / XML format.
         // We can customize the loader of various configuration data sources,
         // only need to implement the Loader interface.
         loader := configurator.NewFileLoader("config")
+        // Initialize the configuration file loader.
+        if err := loader.Initialize(); err != nil {
+            // Handle error.
+        }
     
         // Register the configuration loader.
         // The loader that is registered first has the highest priority.
