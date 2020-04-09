@@ -22,7 +22,8 @@ import (
 )
 
 type Client struct {
-	loaders []Loader // List of registered configuration loaders.
+	// List of registered configuration loaders.
+	loaders []Loader
 }
 
 // Create a new configuration manager client.
