@@ -40,7 +40,7 @@ func (c *Client) Use(loader Loader) *Client {
 	return c
 }
 
-// Load the configuration item with the given name.
+// Load the configuration target with the given name.
 func (c *Client) Load(target string) ([]byte, error) {
 	return c.load(target, 0)
 }
