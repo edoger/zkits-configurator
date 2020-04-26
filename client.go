@@ -18,45 +18,75 @@ import (
 	"bytes"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
+	"sync"
 
 	"github.com/BurntSushi/toml"
 )
 
-// Client type is the configuration file loading manager.
+// ErrNotFound indicates that the configuration target was not found.
+// When a configuration target cannot be loaded in all loaders, this error will be returned.
+var ErrNotFound = errors.New("configuration not found")
+
+// Client type is the configuration manager.
 type Client struct {
-	// List of registered configuration loaders.
+	mutex   sync.RWMutex
 	loaders []Loader
 }
 
-// Create a new configuration manager client.
-func New() *Client {
-	return new(Client)
+// New creates and returns a new client instance.
+func New() *Client { return new(Client) }
+
+// Next type defines the trigger for the loader.
+type Next func() ([]byte, error)
+
+// Loader interface type defines a configuration target loader.
+// The loader is responsible for loading the latest content of a given configuration target.
+type Loader interface {
+	// The Load method loads the contents of a given configuration target.
+	// If the target is not within the processing range, next should be called to give
+	// the load permission to other configuration loaders.
+	Load(target string, next Next) ([]byte, error)
 }
 
-// Register a configuration loader.
-// List of registered configuration item loaders.
+// LoaderFunc type defines the configuration target loader function.
+type LoaderFunc func(string, Next) ([]byte, error)
+
+// Load method is used to call the configuration target loader function.
+// This is just to implement the loader interface.
+func (f LoaderFunc) Load(target string, next Next) ([]byte, error) {
+	return f(target, next)
+}
+
+// Use method registers a configuration target loader.
 func (c *Client) Use(loader Loader) *Client {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
 	c.loaders = append(c.loaders, loader)
 	return c
 }
 
-// Load the configuration target with the given name.
+// Load method will immediately load the given configuration target.
 func (c *Client) Load(target string) ([]byte, error) {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+
 	return c.load(target, 0)
 }
 
 func (c *Client) load(target string, index int) ([]byte, error) {
-	if next := index + 1; index >= len(c.loaders) {
+	if n := index + 1; index >= len(c.loaders) {
 		return nil, ErrNotFound
 	} else {
 		return c.loaders[index].Load(target, func() ([]byte, error) {
-			return c.load(target, next)
+			return c.load(target, n)
 		})
 	}
 }
 
-// Load a configuration file and return a *bytes.Buffer.
-// If the load fails, a nil will be returned.
+// LoadBuffer method loads the given configuration target and returns the content as
+// a *bytes.Buffer instance.
 func (c *Client) LoadBuffer(target string) (*bytes.Buffer, error) {
 	if data, err := c.Load(target); err != nil {
 		return nil, err
@@ -65,7 +95,8 @@ func (c *Client) LoadBuffer(target string) (*bytes.Buffer, error) {
 	}
 }
 
-// Load a JSON configuration and bind it to the given object.
+// LoadJSON method loads the given configuration target and binds the content to the
+// given object as json.
 func (c *Client) LoadJSON(target string, o interface{}) error {
 	if data, err := c.Load(target); err != nil {
 		return err
@@ -74,7 +105,8 @@ func (c *Client) LoadJSON(target string, o interface{}) error {
 	}
 }
 
-// Load a XML configuration and bind it to the given object.
+// LoadXML method loads the given configuration target and binds the content to the
+// given object as xml.
 func (c *Client) LoadXML(target string, o interface{}) error {
 	if data, err := c.Load(target); err != nil {
 		return err
@@ -83,7 +115,8 @@ func (c *Client) LoadXML(target string, o interface{}) error {
 	}
 }
 
-// Load a TOML configuration and bind it to the given object.
+// LoadTOML method loads the given configuration target and binds the content to the
+// given object as toml.
 func (c *Client) LoadTOML(target string, o interface{}) error {
 	if data, err := c.Load(target); err != nil {
 		return err

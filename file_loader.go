@@ -15,6 +15,7 @@
 package configurator
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -22,81 +23,154 @@ import (
 	"sync"
 )
 
+// Make sure that the file loader implements the loader interface.
 var _ Loader = (*FileLoader)(nil)
 
-// FileLoader type is a built-in configuration file loader.
+// FileLoader type defines a configuration file loader.
+// The loader is used to search and load the latest content of the configuration
+// file matching the target in the known file list.
 type FileLoader struct {
-	// Resource read-write lock.
 	mutex sync.RWMutex
-	// The path of the configuration file directory.
-	directory string
-	// Whether the loader has been initialized.
-	initialized bool
-	// Configuration file path cache.
-	// This is a mapping of names (without extension name) to paths.
-	files map[string][]string
+	files map[string]string
 }
 
-// Create an instance of the configuration file loader.
-func NewFileLoader(directory string) *FileLoader {
-	return &FileLoader{directory: directory}
+// NewFileLoader creates and returns a new file loader instance.
+func NewFileLoader() *FileLoader {
+	return &FileLoader{files: make(map[string]string)}
 }
 
-// Initialize the current configuration file loader.
-// This method will build a path cache table of all regular configuration
-// files in the directory.
-// This method is idempotent.
-func (loader *FileLoader) Initialize() error {
+// AddDir method adds the given directory to the current file loader.
+// This method can specify the extension names to limit the file type.
+func (loader *FileLoader) AddDir(directory string, extensions ...string) error {
 	loader.mutex.Lock()
 	defer loader.mutex.Unlock()
 
-	if loader.initialized {
+	dir, err := filepath.Abs(directory)
+	if err != nil {
+		return err
+	}
+	if files, err := loader.dir(dir, extensions); err != nil {
+		return err
+	} else {
+		// Make sure that the file name added eventually will not be duplicated.
+		for name, position := range files {
+			if old, found := loader.files[name]; found {
+				if old != position {
+					return fmt.Errorf("duplicate file %s and %s", old, position)
+				}
+				delete(files, name)
+			}
+		}
+		for name, position := range files {
+			loader.files[name] = position
+		}
 		return nil
 	}
+}
 
-	dir, err := filepath.Abs(loader.directory)
+// Read the list of regular files in the given directory.
+func (loader *FileLoader) dir(directory string, extensions []string) (map[string]string, error) {
+	items, err := ioutil.ReadDir(directory)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	items, err := ioutil.ReadDir(dir)
-	if err != nil {
-		return err
-	}
-	if loader.files == nil {
-		loader.files = make(map[string][]string, len(items))
-	}
+	files := make(map[string]string)
 	for i, j := 0, len(items); i < j; i++ {
-		if items[i].Mode().IsRegular() {
-			// We only care about regular file.
-			name := items[i].Name()
-			if ext := filepath.Ext(name); ext != "" {
-				name = strings.TrimSuffix(name, ext)
+		// When adding directory, we only care about regular files.
+		if mode := items[i].Mode(); !mode.IsRegular() {
+			continue
+		}
+		n := items[i].Name()
+		p := filepath.Join(directory, n)
+		e := filepath.Ext(n)
+		if e != "" {
+			n = strings.TrimSuffix(n, e)
+		}
+		// Determines if the file extensions match.
+		// If the extension is not qualified, all files will be added.
+		if l := len(extensions); l > 0 {
+			ok := false
+			for i := 0; i < l; i++ {
+				if extensions[i] == e {
+					ok = true
+					break
+				}
 			}
-			loader.files[name] = append(loader.files[name], filepath.Join(dir, items[i].Name()))
+			if !ok {
+				continue
+			}
+		}
+		// Make sure that there are no duplicate files in the current directory.
+		if old, found := files[n]; found {
+			return nil, fmt.Errorf("duplicate file %s and %s", old, p)
+		} else {
+			files[n] = p
 		}
 	}
 
-	loader.initialized = true
+	return files, nil
+}
+
+// AddFile method adds a regular file to the current file loader.
+func (loader *FileLoader) AddFile(name string) error {
+	loader.mutex.Lock()
+	defer loader.mutex.Unlock()
+
+	position, err := filepath.Abs(name)
+	if err != nil {
+		return err
+	}
+
+	info, err := os.Stat(position)
+	if err != nil {
+		return err
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("file %s is not a regular file", name)
+	}
+
+	n := info.Name()
+	if e := filepath.Ext(n); e != "" {
+		n = strings.TrimSuffix(n, e)
+	}
+
+	if old, found := loader.files[n]; found {
+		if old != position {
+			return fmt.Errorf("duplication file name %s and %s", old, position)
+		}
+	} else {
+		loader.files[n] = position
+	}
 	return nil
 }
 
-// Load a configuration file by the given file name.
-func (loader *FileLoader) Load(target string, next func() ([]byte, error)) ([]byte, error) {
+// Load method loads the latest content of a given configuration file target.
+func (loader *FileLoader) Load(target string, next Next) ([]byte, error) {
+	content, err := loader.load(target)
+	if err != nil {
+		return nil, err
+	}
+	if content != nil {
+		return content, nil
+	}
+	return next()
+}
+
+// Search and load the given file target content.
+func (loader *FileLoader) load(target string) ([]byte, error) {
 	loader.mutex.RLock()
 	defer loader.mutex.RUnlock()
 
-	if len(loader.files) > 0 {
-		for _, item := range loader.files[target] {
-			data, err := ioutil.ReadFile(item)
-			if err == nil {
-				return data, nil
-			}
-			if !os.IsNotExist(err) {
-				return nil, err
-			}
+	if position, found := loader.files[target]; found {
+		content, err := ioutil.ReadFile(position)
+		if err == nil {
+			return content, nil
+		}
+		// Be careful if the file is deleted?
+		if !os.IsNotExist(err) {
+			return nil, err
 		}
 	}
-
-	return next()
+	return nil, nil
 }

@@ -19,40 +19,45 @@ import (
 	"testing"
 )
 
-func TestFileLoader(t *testing.T) {
-	loader := NewFileLoader("test")
-	if loader == nil {
+func doTestFileLoader(t *testing.T, f func(*FileLoader)) {
+	if loader := NewFileLoader(); loader == nil {
 		t.Fatal("NewFileLoader() return nil")
-	}
-	if err := loader.Initialize(); err != nil {
-		t.Fatal(err)
-	}
-	if err := loader.Initialize(); err != nil {
-		t.Fatal(err)
-	}
-
-	next := func() ([]byte, error) { return nil, ErrNotFound }
-
-	if data, err := loader.Load("test", next); err != nil {
-		t.Fatal(err)
 	} else {
-		if s := strings.TrimSpace(string(data)); s != "TEST" {
-			t.Fatal(s)
-		}
+		f(loader)
 	}
+}
 
-	if data, err := loader.Load("unknown", next); err == nil {
-		t.Fatal("No error")
-	} else {
-		if err != ErrNotFound {
+func TestFileLoader(t *testing.T) {
+	doTestFileLoader(t, func(loader *FileLoader) {
+		if err := loader.AddDir("test", ".txt"); err != nil {
 			t.Fatal(err)
 		}
-		if data != nil {
-			t.Fatal(string(data))
-		}
-	}
 
-	if err := NewFileLoader("test/error").Initialize(); err == nil {
-		t.Fatal("No error")
-	}
+		next := func() ([]byte, error) {
+			return nil, ErrNotFound
+		}
+
+		if data, err := loader.Load("test", next); err != nil {
+			t.Fatal(err)
+		} else {
+			if s := strings.TrimSpace(string(data)); s != "TEST" {
+				t.Fatal(s)
+			}
+		}
+
+		if data, err := loader.Load("unknown", next); err == nil {
+			t.Fatal("No error")
+		} else {
+			if err != ErrNotFound {
+				t.Fatal(err)
+			}
+			if data != nil {
+				t.Fatal(string(data))
+			}
+		}
+
+		if err := loader.AddDir("test/not-found"); err == nil {
+			t.Fatal("No error")
+		}
+	})
 }
