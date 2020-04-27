@@ -18,7 +18,7 @@ import (
 	"testing"
 )
 
-func doTestClient(t *testing.T, f func(*Client))  {
+func doTestClient(t *testing.T, f func(*Client)) {
 	if client := New(); client == nil {
 		t.Fatal("New() return nil")
 	} else {
@@ -136,49 +136,53 @@ func TestClient_LoadXML(t *testing.T) {
 		Value string `xml:"key"`
 	}
 
-	client := New()
-	client.Use(LoaderFunc(func(target string, next Next) ([]byte, error) {
-		if target == "foo" {
-			return []byte(`<xml><key>foo</key></xml>`), nil
-		}
-		return next()
-	}))
+	var o *object
 
-	o := new(object)
+	doTestClient(t, func(client *Client) {
+		client.Use(LoaderFunc(func(target string, next Next) ([]byte, error) {
+			if target == "foo" {
+				return []byte(`<xml><key>foo</key></xml>`), nil
+			}
+			return next()
+		}))
 
-	if err := client.LoadXML("foo", o); err != nil {
-		t.Fatal(err)
-	}
-	if o.Value != "foo" {
-		t.Fatal(o.Value)
-	}
-
-	o = new(object)
-	if err := client.LoadXML("bar", o); err == nil {
-		t.Fatal("Client.LoadXML()")
-	} else {
-		if err != ErrNotFound {
+		o = new(object)
+		if err := client.LoadXML("foo", o); err != nil {
 			t.Fatal(err)
 		}
-	}
-	if o.Value != "" {
-		t.Fatal(o.Value)
-	}
-
-	client.Use(LoaderFunc(func(target string, next Next) ([]byte, error) {
-		if target == "bar" {
-			return []byte(`><`), nil
+		if o.Value != "foo" {
+			t.Fatal(o.Value)
 		}
-		return next()
-	}))
 
-	o = new(object)
-	if err := client.LoadXML("bar", o); err == nil {
-		t.Fatal("Client.LoadXML()")
-	}
-	if o.Value != "" {
-		t.Fatal(o.Value)
-	}
+		o = new(object)
+		if err := client.LoadXML("bar", o); err == nil {
+			t.Fatal("No error")
+		} else {
+			if err != ErrNotFound {
+				t.Fatal(err)
+			}
+		}
+		if o.Value != "" {
+			t.Fatal(o.Value)
+		}
+	})
+
+	doTestClient(t, func(client *Client) {
+		client.Use(LoaderFunc(func(target string, next Next) ([]byte, error) {
+			if target == "bar" {
+				return []byte(`><`), nil
+			}
+			return next()
+		}))
+
+		o = new(object)
+		if err := client.LoadXML("bar", o); err == nil {
+			t.Fatal("No error")
+		}
+		if o.Value != "" {
+			t.Fatal(o.Value)
+		}
+	})
 }
 
 func TestClient_LoadTOML(t *testing.T) {
@@ -186,47 +190,51 @@ func TestClient_LoadTOML(t *testing.T) {
 		Value string `toml:"key"`
 	}
 
-	client := New()
-	client.Use(LoaderFunc(func(target string, next Next) ([]byte, error) {
-		if target == "foo" {
-			return []byte(`key = "foo"`), nil
-		}
-		return next()
-	}))
+	var o *object
 
-	o := new(object)
+	doTestClient(t, func(client *Client) {
+		client.Use(LoaderFunc(func(target string, next Next) ([]byte, error) {
+			if target == "foo" {
+				return []byte(`key = "foo"`), nil
+			}
+			return next()
+		}))
 
-	if err := client.LoadTOML("foo", o); err != nil {
-		t.Fatal(err)
-	}
-	if o.Value != "foo" {
-		t.Fatal(o.Value)
-	}
-
-	o = new(object)
-	if err := client.LoadTOML("bar", o); err == nil {
-		t.Fatal("Client.LoadTOML()")
-	} else {
-		if err != ErrNotFound {
+		o = new(object)
+		if err := client.LoadTOML("foo", o); err != nil {
 			t.Fatal(err)
 		}
-	}
-	if o.Value != "" {
-		t.Fatal(o.Value)
-	}
-
-	client.Use(LoaderFunc(func(target string, next Next) ([]byte, error) {
-		if target == "bar" {
-			return []byte(`===`), nil
+		if o.Value != "foo" {
+			t.Fatal(o.Value)
 		}
-		return next()
-	}))
 
-	o = new(object)
-	if err := client.LoadTOML("bar", o); err == nil {
-		t.Fatal("Client.LoadTOML()")
-	}
-	if o.Value != "" {
-		t.Fatal(o.Value)
-	}
+		o = new(object)
+		if err := client.LoadTOML("bar", o); err == nil {
+			t.Fatal("No error")
+		} else {
+			if err != ErrNotFound {
+				t.Fatal(err)
+			}
+		}
+		if o.Value != "" {
+			t.Fatal(o.Value)
+		}
+	})
+
+	doTestClient(t, func(client *Client) {
+		client.Use(LoaderFunc(func(target string, next Next) ([]byte, error) {
+			if target == "bar" {
+				return []byte(`===`), nil
+			}
+			return next()
+		}))
+
+		o = new(object)
+		if err := client.LoadTOML("bar", o); err == nil {
+			t.Fatal("No error")
+		}
+		if o.Value != "" {
+			t.Fatal(o.Value)
+		}
+	})
 }
