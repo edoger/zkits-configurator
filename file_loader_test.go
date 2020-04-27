@@ -56,7 +56,61 @@ func TestFileLoader(t *testing.T) {
 			}
 		}
 
+		loader.files["test"] = "test/sub"
+
+		if data, err := loader.Load("test", next); err == nil {
+			t.Fatal("No error")
+		} else {
+			if data != nil {
+				t.Fatal(string(data))
+			}
+		}
+	})
+
+	doTestFileLoader(t, func(loader *FileLoader) {
 		if err := loader.AddDir("test/not-found"); err == nil {
+			t.Fatal("No error")
+		}
+		if err := loader.AddDir("\n"); err == nil {
+			t.Fatal("No error")
+		}
+	})
+
+	doTestFileLoader(t, func(loader *FileLoader) {
+		if err := loader.AddDir("test", ".txt"); err != nil {
+			t.Fatal(err)
+		}
+		if err := loader.AddDir("test", ".json"); err == nil {
+			t.Fatal("No error")
+		}
+	})
+
+	doTestFileLoader(t, func(loader *FileLoader) {
+		if err := loader.AddDir("test", ".txt", ".json"); err == nil {
+			t.Fatal("No error")
+		}
+	})
+
+	doTestFileLoader(t, func(loader *FileLoader) {
+		if err := loader.AddDir("test", ".txt"); err != nil {
+			t.Fatal(err)
+		}
+		if err := loader.AddDir("test", ".txt"); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	doTestFileLoader(t, func(loader *FileLoader) {
+		if err := loader.AddFile("test/sub/foo.txt"); err != nil {
+			t.Fatal(err)
+		}
+		if err := loader.AddFile("test/test.txt"); err != nil {
+			t.Fatal(err)
+		}
+		if err := loader.AddFile("test/test.json"); err == nil {
+			t.Fatal("No error")
+		}
+		if err := loader.AddFile("test/sub"); err == nil {
 			t.Fatal("No error")
 		}
 	})
