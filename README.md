@@ -20,7 +20,7 @@ Built-in configuration file binding that supports TOML / JSON / XML format.
 
  2. Register configuration loader.
  
-    ```
+    ```go
     // Create a new configuration manager client.
     client := configurator.New()
     // Create a configuration file loader.
@@ -45,7 +45,7 @@ Built-in configuration file binding that supports TOML / JSON / XML format.
     
  3. Load configuration target.
 
-    ```
+    ```go
     // Load the configuration target with the given name.
     content, err := client.Load("target")
     
