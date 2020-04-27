@@ -58,6 +58,11 @@ func (f LoaderFunc) Load(target string, next Next) ([]byte, error) {
 	return f(target, next)
 }
 
+// Bindable interface type defines a bindable configuration object.
+type Bindable interface {
+	BindFrom([]byte) error
+}
+
 // Use method registers a configuration target loader.
 func (c *Client) Use(loader Loader) *Client {
 	c.mutex.Lock()
@@ -92,6 +97,15 @@ func (c *Client) LoadBuffer(target string) (*bytes.Buffer, error) {
 		return nil, err
 	} else {
 		return bytes.NewBuffer(data), nil
+	}
+}
+
+// LoadAndBind method loads the given configuration target and binds to the given object.
+func (c *Client) LoadAndBind(target string, o Bindable) error {
+	if data, err := c.Load(target); err != nil {
+		return err
+	} else {
+		return o.BindFrom(data)
 	}
 }
 
