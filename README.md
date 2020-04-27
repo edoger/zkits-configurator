@@ -12,53 +12,57 @@ Built-in configuration file binding that supports TOML / JSON / XML format.
 
 ## Usage ##
 
- 1. Import package.
+ 1. Install package.
  
     ```sh
     go get -u -v github.com/edoger/zkits-configurator
     ```
 
- 2. Example.
-    ```go
-    package main
+ 2. Register configuration loader.
+ 
+    ```
+    // Create a new configuration manager client.
+    client := configurator.New()
+    // Create a configuration file loader.
+    loader := configurator.NewFileLoader()
+
+    // Add configuration directory.
+    err := loader.AddDir("dir")
+    err := loader.AddDir("dir", ".json", ".toml")
+    err := loader.AddFile("path/to/file.ext")
+
+    // Register the configuration loader.
+    client.Use(loader)
+
+    // Create memory configuration loader.
+    memory := configurator.NewMemoryLoader()
+    memory.Add("target", []byte(`{"key":"value"}`))
+    memory.Set("target", []byte(`{"key":"value"}`))
+
+    // Register the configuration loader.
+    client.Use(loader)
+    ```
     
-    import (
-        "github.com/edoger/zkits-configurator"
-    )
+ 3. Load configuration target.
+
+    ```
+    // Load the configuration target with the given name.
+    content, err := client.Load("target")
     
-    func main() {
-        // Create a new configuration manager client.
-        client := configurator.New()
+    // Load the configuration target and binds to the given bindable.
+    err := client.LoadAndBind("target", bindable)
     
-        // Create a configuration file loader.
-        // We can customize the loader of various configuration data sources,
-        // only need to implement the Loader interface.
-        loader := configurator.NewFileLoader("config")
-        // Initialize the configuration file loader.
-        if err := loader.Initialize(); err != nil {
-            // Handle error.
-        }
+    // Load a configuration file and return a *bytes.Buffer.
+    buffer, err := client.LoadBuffer("file")
     
-        // Register the configuration loader.
-        // The loader that is registered first has the highest priority.
-        client.Use(loader)
+    // Load a JSON configuration and bind it to the given object.
+    err := client.LoadJSON("file", object)
     
-        // Load the configuration target with the given name.
-        content, err := client.Load("file-name")
-        if err != nil {
-            // Handle error.
-        }
+    // Load a XML configuration and bind it to the given object.
+    err := client.LoadXML("file", object)
     
-        // Load a configuration file and return a *bytes.Buffer.
-        client.LoadBuffer("file")
-    
-        // Load a JSON configuration and bind it to the given object.
-        client.LoadJSON("file", object)
-        // Load a XML configuration and bind it to the given object.
-        client.LoadXML("file", object)
-        // Load a TOML configuration and bind it to the given object.
-        client.LoadTOML("file", object)
-    }
+    // Load a TOML configuration and bind it to the given object.
+    err := client.LoadTOML("file", object)
     ```
 
 ## License ##
