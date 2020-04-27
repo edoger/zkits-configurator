@@ -15,9 +15,12 @@
 package configurator
 
 import (
+	"encoding/json"
+	"errors"
 	"testing"
 )
 
+// Create a client and execute test cases.
 func doTestClient(t *testing.T, f func(*Client)) {
 	if client := New(); client == nil {
 		t.Fatal("New() return nil")
@@ -26,29 +29,38 @@ func doTestClient(t *testing.T, f func(*Client)) {
 	}
 }
 
+// A loader for testing.
+type testLoader struct {
+	items map[string]string
+}
+
+func newTestLoader(items map[string]string) Loader {
+	return &testLoader{items: items}
+}
+
+func (l *testLoader) Load(target string, next Next) ([]byte, error) {
+	if value, found := l.items[target]; found {
+		return []byte(value), nil
+	}
+	return next()
+}
+
 func TestClient(t *testing.T) {
+	fooLoader := newTestLoader(map[string]string{"foo": "foo"})
+	barLoader := newTestLoader(map[string]string{"bar": "bar"})
+	errLoader := LoaderFunc(func(string, Next) ([]byte, error) {
+		return nil, errors.New("error loader")
+	})
+
 	doTestClient(t, func(client *Client) {
-		foo := LoaderFunc(func(target string, next Next) ([]byte, error) {
-			if target == "foo" {
-				return []byte("foo"), nil
-			}
-			return next()
-		})
-		bar := LoaderFunc(func(target string, next Next) ([]byte, error) {
-			if target == "bar" {
-				return []byte("bar"), nil
-			}
-			return next()
-		})
-
-		if client.Use(foo) == nil {
+		if client.Use(fooLoader) == nil {
 			t.Fatal("Client.Use() return nil")
 		}
-		if client.Use(bar) == nil {
+		if client.Use(barLoader) == nil {
 			t.Fatal("Client.Use() return nil")
 		}
 
-		if data, err := client.Load("test"); err == nil {
+		if data, err := client.Load("not-found"); err == nil {
 			t.Fatal("No error")
 		} else {
 			if err != ErrNotFound {
@@ -75,166 +87,194 @@ func TestClient(t *testing.T) {
 			}
 		}
 	})
+
+	doTestClient(t, func(client *Client) {
+		if client.Use(errLoader) == nil {
+			t.Fatal("Client.Use() return nil")
+		}
+
+		if data, err := client.Load("not-found"); err == nil {
+			t.Fatal("No error")
+		} else {
+			if data != nil {
+				t.Fatal(string(data))
+			}
+		}
+	})
+}
+
+func TestClient_LoadBuffer(t *testing.T) {
+	doTestClient(t, func(client *Client) {
+		client.Use(newTestLoader(map[string]string{"test": "test"}))
+
+		if buffer, err := client.LoadBuffer("test"); err != nil {
+			t.Fatal(err)
+		} else {
+			if buffer == nil {
+				t.Fatal("Nil buffer")
+			}
+			if s := buffer.String(); s != "test" {
+				t.Fatal(s)
+			}
+		}
+	})
+
+	doTestClient(t, func(client *Client) {
+		client.Use(LoaderFunc(func(string, Next) ([]byte, error) {
+			return nil, errors.New("error loader")
+		}))
+
+		if buffer, err := client.LoadBuffer("test"); err == nil {
+			t.Fatal("No error")
+		} else {
+			if buffer != nil {
+				t.Fatal(buffer.String())
+			}
+		}
+	})
+}
+
+// A bindable object for testing binding.
+type testBindable struct {
+	Key string `json:"key"`
+}
+
+func newBindable() *testBindable {
+	return new(testBindable)
+}
+
+func (o *testBindable) BindFrom(data []byte) error {
+	return json.Unmarshal(data, o)
+}
+
+func TestClient_LoadAndBind(t *testing.T) {
+	doTestClient(t, func(client *Client) {
+		client.Use(LoaderFunc(func(string, Next) ([]byte, error) {
+			return nil, errors.New("error loader")
+		}))
+
+		b := newBindable()
+
+		if err := client.LoadAndBind("test", b); err == nil {
+			t.Fatal("No error")
+		} else {
+			if b.Key != "" {
+				t.Fatal(b.Key)
+			}
+		}
+	})
+
+	doTestClient(t, func(client *Client) {
+		client.Use(newTestLoader(map[string]string{"test": `{"key":"foo"}`}))
+		b := newBindable()
+
+		if err := client.LoadAndBind("test", b); err != nil {
+			t.Fatal(err)
+		} else {
+			if b.Key != "foo" {
+				t.Fatal(b.Key)
+			}
+		}
+	})
+}
+
+// Test client bindings.
+func doTestClientWithObject(t *testing.T, f func(*Client, interface{}) string) {
+	type object struct {
+		Key string `json:"key" xml:"key" toml:"key"`
+	}
+
+	doTestClient(t, func(client *Client) {
+		o := new(object)
+		if want := f(client, o); want != o.Key {
+			t.Fatalf("Want %s, Got %s", want, o.Key)
+		}
+	})
 }
 
 func TestClient_LoadJSON(t *testing.T) {
-	type object struct {
-		Value string `json:"key"`
-	}
-
-	var o *object
-
-	doTestClient(t, func(client *Client) {
-		client.Use(LoaderFunc(func(target string, next Next) ([]byte, error) {
-			if target == "foo" {
-				return []byte(`{"key":"foo"}`), nil
-			}
-			return next()
-		}))
-
-		o = new(object)
+	doTestClientWithObject(t, func(client *Client, o interface{}) string {
+		client.Use(newTestLoader(map[string]string{"foo": `{"key":"foo"}`}))
 		if err := client.LoadJSON("foo", o); err != nil {
 			t.Fatal(err)
 		}
-		if o.Value != "foo" {
-			t.Fatal(o.Value)
-		}
+		return "foo"
+	})
 
-		o = new(object)
-		if err := client.LoadJSON("bar", o); err == nil {
+	doTestClientWithObject(t, func(client *Client, o interface{}) string {
+		if err := client.LoadJSON("foo", o); err == nil {
 			t.Fatal("No error")
 		} else {
 			if err != ErrNotFound {
 				t.Fatal(err)
 			}
 		}
-		if o.Value != "" {
-			t.Fatal(o.Value)
-		}
+		return ""
 	})
 
-	doTestClient(t, func(client *Client) {
-		client.Use(LoaderFunc(func(target string, next Next) ([]byte, error) {
-			if target == "bar" {
-				return []byte(`{bar}`), nil
-			}
-			return next()
-		}))
-
-		o = new(object)
-		if err := client.LoadJSON("bar", o); err == nil {
+	doTestClientWithObject(t, func(client *Client, o interface{}) string {
+		client.Use(newTestLoader(map[string]string{"foo": `{bar}`}))
+		if err := client.LoadJSON("foo", o); err == nil {
 			t.Fatal("No error")
 		}
-		if o.Value != "" {
-			t.Fatal(o.Value)
-		}
+		return ""
 	})
 }
 
 func TestClient_LoadXML(t *testing.T) {
-	type object struct {
-		Value string `xml:"key"`
-	}
-
-	var o *object
-
-	doTestClient(t, func(client *Client) {
-		client.Use(LoaderFunc(func(target string, next Next) ([]byte, error) {
-			if target == "foo" {
-				return []byte(`<xml><key>foo</key></xml>`), nil
-			}
-			return next()
-		}))
-
-		o = new(object)
+	doTestClientWithObject(t, func(client *Client, o interface{}) string {
+		client.Use(newTestLoader(map[string]string{"foo": `<xml><key>foo</key></xml>`}))
 		if err := client.LoadXML("foo", o); err != nil {
 			t.Fatal(err)
 		}
-		if o.Value != "foo" {
-			t.Fatal(o.Value)
-		}
+		return "foo"
+	})
 
-		o = new(object)
-		if err := client.LoadXML("bar", o); err == nil {
+	doTestClientWithObject(t, func(client *Client, o interface{}) string {
+		if err := client.LoadXML("foo", o); err == nil {
 			t.Fatal("No error")
 		} else {
 			if err != ErrNotFound {
 				t.Fatal(err)
 			}
 		}
-		if o.Value != "" {
-			t.Fatal(o.Value)
-		}
+		return ""
 	})
 
-	doTestClient(t, func(client *Client) {
-		client.Use(LoaderFunc(func(target string, next Next) ([]byte, error) {
-			if target == "bar" {
-				return []byte(`><`), nil
-			}
-			return next()
-		}))
-
-		o = new(object)
-		if err := client.LoadXML("bar", o); err == nil {
+	doTestClientWithObject(t, func(client *Client, o interface{}) string {
+		client.Use(newTestLoader(map[string]string{"foo": `><`}))
+		if err := client.LoadXML("foo", o); err == nil {
 			t.Fatal("No error")
 		}
-		if o.Value != "" {
-			t.Fatal(o.Value)
-		}
+		return ""
 	})
 }
 
 func TestClient_LoadTOML(t *testing.T) {
-	type object struct {
-		Value string `toml:"key"`
-	}
-
-	var o *object
-
-	doTestClient(t, func(client *Client) {
-		client.Use(LoaderFunc(func(target string, next Next) ([]byte, error) {
-			if target == "foo" {
-				return []byte(`key = "foo"`), nil
-			}
-			return next()
-		}))
-
-		o = new(object)
+	doTestClientWithObject(t, func(client *Client, o interface{}) string {
+		client.Use(newTestLoader(map[string]string{"foo": `key = "foo"`}))
 		if err := client.LoadTOML("foo", o); err != nil {
 			t.Fatal(err)
 		}
-		if o.Value != "foo" {
-			t.Fatal(o.Value)
-		}
+		return "foo"
+	})
 
-		o = new(object)
-		if err := client.LoadTOML("bar", o); err == nil {
+	doTestClientWithObject(t, func(client *Client, o interface{}) string {
+		if err := client.LoadTOML("foo", o); err == nil {
 			t.Fatal("No error")
 		} else {
 			if err != ErrNotFound {
 				t.Fatal(err)
 			}
 		}
-		if o.Value != "" {
-			t.Fatal(o.Value)
-		}
+		return ""
 	})
 
-	doTestClient(t, func(client *Client) {
-		client.Use(LoaderFunc(func(target string, next Next) ([]byte, error) {
-			if target == "bar" {
-				return []byte(`===`), nil
-			}
-			return next()
-		}))
-
-		o = new(object)
-		if err := client.LoadTOML("bar", o); err == nil {
+	doTestClientWithObject(t, func(client *Client, o interface{}) string {
+		client.Use(newTestLoader(map[string]string{"foo": `===`}))
+		if err := client.LoadTOML("foo", o); err == nil {
 			t.Fatal("No error")
 		}
-		if o.Value != "" {
-			t.Fatal(o.Value)
-		}
+		return ""
 	})
 }
