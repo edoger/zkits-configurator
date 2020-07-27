@@ -81,13 +81,13 @@ func (c *Client) Load(target string) ([]byte, error) {
 }
 
 func (c *Client) load(target string, index int) ([]byte, error) {
-	if n := index + 1; index >= len(c.loaders) {
+	if index >= len(c.loaders) {
 		return nil, ErrNotFound
-	} else {
-		return c.loaders[index].Load(target, func() ([]byte, error) {
-			return c.load(target, n)
-		})
 	}
+	n := index + 1
+	return c.loaders[index].Load(target, func() ([]byte, error) {
+		return c.load(target, n)
+	})
 }
 
 // LoadBuffer method loads the given configuration target and returns the content as
