@@ -26,7 +26,7 @@ import (
 
 // ErrNotFound indicates that the configuration target was not found.
 // When a configuration target cannot be loaded in all loaders, this error will be returned.
-var ErrNotFound = errors.New("configuration not found")
+var ErrNotFound = errors.New("configurator: not found")
 
 // Client type is the configuration manager.
 type Client struct {
