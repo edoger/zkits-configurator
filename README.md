@@ -10,7 +10,7 @@
 
 This package is a library of ZKits project.
 This library provides an efficient configuration file loading process controller. 
-Built-in configuration file binding that supports TOML / JSON / XML format.
+Built-in config file binding that supports TOML/JSON/XML/YAML format.
 
 ## Usage ##
 
@@ -20,51 +20,31 @@ Built-in configuration file binding that supports TOML / JSON / XML format.
     go get -u -v github.com/edoger/zkits-configurator
     ```
  
- 2. Register configuration loader.
+ 2. Load configuration target.
  
     ```go
-    // Create a new configuration manager client.
-    client := configurator.New()
-    // Create a configuration file loader.
-    loader := configurator.NewFileLoader()
+    // Create a new configurator.
+    c := configurator.New()
 
-    // Add configuration directory.
-    err := loader.AddDir("dir")
-    err := loader.AddDir("dir", ".json", ".toml")
-    err := loader.AddFile("path/to/file.ext")
+    // Add configuration files.
+    err := c.AddFile("/path/to/*.json")
+    err := c.AddFile("/path/to/*.yaml")
+    err := c.AddFile("/path/to/*.toml")
+    err := c.AddFile("/path/to/*.xml")
 
-    // Register the configuration loader.
-    client.Use(loader)
-
-    // Create memory configuration loader.
-    memory := configurator.NewMemoryLoader()
-    memory.Add("target", []byte(`{"key":"value"}`))
-    memory.Set("target", []byte(`{"key":"value"}`))
-
-    // Register the configuration loader.
-    client.Use(loader)
-    ```
- 
- 3. Load configuration target.
- 
-    ```go
-    // Load the configuration target with the given name.
-    content, err := client.Load("target")
+    // Load configuration file.
+    err := client.LoadJSON("file.name", object)
+    err := client.LoadXML("file.name", object)
+    err := client.LoadTOML("file.name", object)
+    err := client.LoadYAML("file.name", object)
     
-    // Load the configuration target and binds to the given bindable.
-    err := client.LoadAndBind("target", bindable)
-    
-    // Load a configuration file and return a *bytes.Buffer.
-    buffer, err := client.LoadBuffer("file")
-    
-    // Load a JSON configuration and bind it to the given object.
-    err := client.LoadJSON("file", object)
-    
-    // Load a XML configuration and bind it to the given object.
-    err := client.LoadXML("file", object)
-    
-    // Load a TOML configuration and bind it to the given object.
-    err := client.LoadTOML("file", object)
+    item, err := client.Load("file.name")
+    item.Bytes()
+    item.String()
+    item.JSON(object)
+    item.XML(object)
+    item.TOML(object)
+    item.YAML(object)
     ```
 
 ## License ##
