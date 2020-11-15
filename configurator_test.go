@@ -15,6 +15,7 @@
 package configurator
 
 import (
+	"errors"
 	"testing"
 )
 
@@ -143,4 +144,115 @@ func TestConfigurator(t *testing.T) {
 			t.Fatalf("Configurator.LoadYAML(): %s", v.Name)
 		}
 	})
+}
+
+func TestConfiguratorLoadError(t *testing.T) {
+	o := New()
+	o.Use(LoaderFunc(func(string) (Item, error) {
+		return nil, errors.New("test")
+	}))
+
+	item, err := o.Load("test")
+	if err == nil {
+		t.Fatal("nil error")
+	}
+	if item != nil {
+		t.Fatal(item)
+	}
+}
+
+func TestConfiguratorLoad(t *testing.T) {
+	o := New()
+	if err := o.AddFile("test/foo/*"); err != nil {
+		t.Fatal(err)
+	}
+
+	type Value struct {
+		Name string `json:"name"`
+	}
+
+	do := func(fs ...func()) {
+		for _, f := range fs {
+			f()
+		}
+	}
+
+	do(func() {
+		v := new(Value)
+		if err := o.LoadJSON("a", v); err != nil {
+			t.Fatal(err)
+		}
+		if v.Name != "a.json" {
+			t.Fatal(v.Name)
+		}
+	}, func() {
+		v := new(Value)
+		if err := o.LoadJSON("a.json", v); err != nil {
+			t.Fatal(err)
+		}
+		if v.Name != "a.json" {
+			t.Fatal(v.Name)
+		}
+	}, func() {
+		v := new(Value)
+		if err := o.LoadJSON("b", v); err != nil {
+			t.Fatal(err)
+		}
+		if v.Name != "b.json" {
+			t.Fatal(v.Name)
+		}
+	}, func() {
+		v := new(Value)
+		if err := o.LoadJSON("b.json", v); err != nil {
+			t.Fatal(err)
+		}
+		if v.Name != "b.json" {
+			t.Fatal(v.Name)
+		}
+	})
+
+	l := NewFileLoader()
+	if err := l.AddFile("test/bar/*"); err != nil {
+		t.Fatal(err)
+	}
+
+	o.Use(l)
+
+	do(func() {
+		v := new(Value)
+		if err := o.LoadJSON("a", v); err != nil {
+			t.Fatal(err)
+		}
+		if v.Name != "bar" {
+			t.Fatal(v.Name)
+		}
+	}, func() {
+		v := new(Value)
+		if err := o.LoadJSON("a.json", v); err != nil {
+			t.Fatal(err)
+		}
+		if v.Name != "bar" {
+			t.Fatal(v.Name)
+		}
+	}, func() {
+		v := new(Value)
+		if err := o.LoadJSON("b", v); err != nil {
+			t.Fatal(err)
+		}
+		if v.Name != "b.json" {
+			t.Fatal(v.Name)
+		}
+	}, func() {
+		v := new(Value)
+		if err := o.LoadJSON("b.json", v); err != nil {
+			t.Fatal(err)
+		}
+		if v.Name != "b.json" {
+			t.Fatal(v.Name)
+		}
+	})
+
+	if _, err := o.Load("a.xml"); err != ErrNotFound {
+		t.Fatal(err)
+	}
 }
