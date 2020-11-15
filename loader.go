@@ -118,12 +118,20 @@ func (o *fileLoader) Load(target string) (Item, error) {
 	r := o.files[n]
 	l := len(r)
 	if e == "" {
-		return newFileItem(r[l-1][3])
+		item, err := newFileItem(r[l-1][3])
+		if err != nil {
+			return nil, err
+		}
+		return item, nil
 	}
 
 	for i := l - 1; i >= 0; i-- {
 		if r[i][0] == e {
-			return newFileItem(r[i][3])
+			item, err := newFileItem(r[i][3])
+			if err != nil {
+				return nil, err
+			}
+			return item, nil
 		}
 	}
 	return nil, nil
