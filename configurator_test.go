@@ -211,12 +211,7 @@ func TestConfiguratorLoad(t *testing.T) {
 		}
 	})
 
-	l := NewFileLoader()
-	if err := l.AddFile("test/bar/*"); err != nil {
-		t.Fatal(err)
-	}
-
-	o.Use(l)
+	o.Use(NewFileLoader().MustAddFile("test/bar/*"))
 
 	do(func() {
 		v := new(Value)

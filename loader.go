@@ -46,6 +46,11 @@ type FileLoader interface {
 	// The given parameter need to comply with the search rules supported
 	// by filepath.Glob.
 	AddFile(string) error
+
+	// MustAddFile adds one or more config files to the current loader.
+	// This method is very similar to AddFile, the only difference is that it panics
+	// when the add fails.
+	MustAddFile(pattern string) FileLoader
 }
 
 // NewFileLoader creates and returns a config file loader instance.
@@ -98,6 +103,16 @@ func (o *fileLoader) AddFile(pattern string) error {
 		o.mutex.Unlock()
 	}
 	return nil
+}
+
+// MustAddFile adds one or more config files to the current loader.
+// This method is very similar to AddFile, the only difference is that it panics
+// when the add fails.
+func (o *fileLoader) MustAddFile(pattern string) FileLoader {
+	if err := o.AddFile(pattern); err != nil {
+		panic(err)
+	}
+	return o
 }
 
 // Load loads the given config file target.
