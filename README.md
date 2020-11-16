@@ -13,7 +13,7 @@ The configurator supports loading config targets from anywhere through built-in 
 
 ## Install ##
 
-```
+```sh
 go get -u -v github.com/edoger/zkits-configurator
 ```
 
