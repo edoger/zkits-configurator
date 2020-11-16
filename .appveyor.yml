@@ -1,6 +1,6 @@
 version: "{build}"
 platform: x64
-clone_folder: c:\gopath\src\github.com\$username\$project
+clone_folder: c:\gopath\src\github.com\edoger\zkits-configurator
 environment:
   GOPATH: c:\gopath
 
