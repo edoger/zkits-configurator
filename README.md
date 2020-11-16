@@ -2,6 +2,7 @@
 
 [![ZKits](https://img.shields.io/badge/ZKits-Library-f3c)](https://github.com/edoger/zkits-configurator)
 [![Build Status](https://travis-ci.org/edoger/zkits-configurator.svg?branch=master)](https://travis-ci.org/edoger/zkits-configurator)
+[![Build status](https://ci.appveyor.com/api/projects/status/wdbp84qga16vuopf/branch/master?svg=true)](https://ci.appveyor.com/project/edoger56924/zkits-configurator/branch/master)
 [![Coverage Status](https://coveralls.io/repos/github/edoger/zkits-configurator/badge.svg?branch=master)](https://coveralls.io/github/edoger/zkits-configurator?branch=master)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/11e8102293d44ede913f7f47603210ef)](https://www.codacy.com/manual/edoger/zkits-configurator?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=edoger/zkits-configurator&amp;utm_campaign=Badge_Grade)
 [![Golang Version](https://img.shields.io/badge/golang-1.13+-orange)](https://github.com/edoger/zkits-configurator)

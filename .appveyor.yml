@@ -1,0 +1,12 @@
+version: "{build}"
+platform: x64
+clone_folder: c:\gopath\src\github.com\$username\$project
+environment:
+  GOPATH: c:\gopath
+
+before_test:
+  - go env
+  - go version
+
+test_script:
+  - go test -v -coverprofile=coverage.out -covermode=count ./...
