@@ -66,13 +66,13 @@ func main() {
 
 	// Register a custom configuration loader (which takes precedence over the built-in file loader).
 	c.Use(configurator.LoaderFunc(func(target string) (configurator.Item, error) {
-	    // Do something!
-        return nil, nil
-    }))
+		// Do something!
+		return nil, nil
+	}))
 	// We provide a built-in configuration file loader.
-    loader := configurator.NewFileLoader()
-    loader.MustAddFile("/path/to/other/*.json")
-    // You can register more loaders, they just need to implement the configurator.Loader interface.
+	loader := configurator.NewFileLoader()
+	loader.MustAddFile("/path/to/other/*.json")
+	// You can register more loaders, they just need to implement the configurator.Loader interface.
 	c.Use(loader)
 }
 ```
