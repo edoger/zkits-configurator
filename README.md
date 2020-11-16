@@ -8,44 +8,74 @@
 
 ## About ##
 
-This package is a library of ZKits project.
-This library provides an efficient configuration file loading process controller. 
-Built-in config file binding that supports TOML/JSON/XML/YAML format.
+This package is a library of ZKits project. 
+The configurator supports loading config targets from anywhere through built-in or custom loaders.
+
+## Install ##
+
+```
+go get -u -v github.com/edoger/zkits-configurator
+```
 
 ## Usage ##
 
- 1. Install package.
- 
-    ```sh
-    go get -u -v github.com/edoger/zkits-configurator
-    ```
- 
- 2. Load configuration target.
- 
-    ```go
-    // Create a new configurator.
-    c := configurator.New()
+```go
+package main
 
-    // Add configuration files.
-    err := c.AddFile("/path/to/*.json")
-    err := c.AddFile("/path/to/*.yaml")
-    err := c.AddFile("/path/to/*.toml")
-    err := c.AddFile("/path/to/*.xml")
+import (
+	"github.com/edoger/zkits-configurator"
+)
 
-    // Load configuration file.
-    err := c.LoadJSON("file.name", object)
-    err := c.LoadXML("file.name", object)
-    err := c.LoadTOML("file.name", object)
-    err := c.LoadYAML("file.name", object)
-    
-    item, err := c.Load("file.name")
-    item.Bytes()
-    item.String()
-    item.JSON(object)
-    item.XML(object)
-    item.TOML(object)
-    item.YAML(object)
-    ```
+func main() {
+	// Create a new configurator.
+	c := configurator.New()
+
+	// Add config files.
+	// The parameter format must be the format required by filepath.Glob().
+	c.AddFile("/path/to/*.json")
+	c.AddFile("/path/to/*.yaml")
+	c.AddFile("/path/to/*.toml")
+	c.AddFile("/path/to/*.xml")
+
+	// Load config file by name.
+	// Usually, the file ext name can be omitted, and the configurator is intelligent enough.
+	item, err := c.Load("file.name")
+	if err != nil {
+		panic(err)
+	}
+
+	item.IsEmpty() // Is empty file?
+	item.Len()     // File content length.
+	item.Bytes()   // Get file content as []byte.
+	item.String()  // Get file content as string.
+	item.Reader()  // Get file content as io.Reader.
+
+	// Variable used to bind config content.
+	object := make(map[string]interface{})
+
+	// Bind config content to object as json/xml/toml/yaml format.
+	item.JSON(&object)
+	item.XML(&object)
+	item.TOML(&object)
+	item.YAML(&object)
+	// These methods can also be used!
+	c.LoadJSON("file.name", &object)
+	c.LoadXML("file.name", &object)
+	c.LoadTOML("file.name", &object)
+	c.LoadYAML("file.name", &object)
+
+	// Register a custom configuration loader (which takes precedence over the built-in file loader).
+	c.Use(configurator.LoaderFunc(func(target string) (configurator.Item, error) {
+	    // Do something!
+        return nil, nil
+    }))
+	// We provide a built-in configuration file loader.
+    loader := configurator.NewFileLoader()
+    loader.MustAddFile("/path/to/other/*.json")
+    // You can register more loaders, they just need to implement the configurator.Loader interface.
+	c.Use(loader)
+}
+```
 
 ## License ##
 
