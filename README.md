@@ -33,12 +33,12 @@ Built-in config file binding that supports TOML/JSON/XML/YAML format.
     err := c.AddFile("/path/to/*.xml")
 
     // Load configuration file.
-    err := client.LoadJSON("file.name", object)
-    err := client.LoadXML("file.name", object)
-    err := client.LoadTOML("file.name", object)
-    err := client.LoadYAML("file.name", object)
+    err := c.LoadJSON("file.name", object)
+    err := c.LoadXML("file.name", object)
+    err := c.LoadTOML("file.name", object)
+    err := c.LoadYAML("file.name", object)
     
-    item, err := client.Load("file.name")
+    item, err := c.Load("file.name")
     item.Bytes()
     item.String()
     item.JSON(object)
