@@ -124,23 +124,30 @@ func (o *fileLoader) Load(target string) (Item, error) {
 		return nil, nil
 	}
 
-	e := filepath.Ext(target)
-	n := strings.TrimSuffix(target, e)
-	if len(o.files[n]) == 0 {
-		return nil, nil
-	}
-
-	r := o.files[n]
-	l := len(r)
-	if e == "" {
-		item, err := newFileItem(r[l-1][3])
+	// If the config target already exists, the ext name will not be split and
+	// the latest config file will be returned directly.
+	// For example: Given "name.suffix", returns "/path/to/name.suffix.json".
+	if a := o.files[target]; len(a) > 0 {
+		item, err := newFileItem(a[len(a)-1][3])
 		if err != nil {
 			return nil, err
 		}
 		return item, nil
 	}
 
-	for i := l - 1; i >= 0; i-- {
+	e := filepath.Ext(target)
+	// If there is no ext name, it can be determined that the target does not exist.
+	if e == "" {
+		return nil, nil
+	}
+
+	n := strings.TrimSuffix(target, e)
+	if len(o.files[n]) == 0 {
+		return nil, nil
+	}
+
+	r := o.files[n]
+	for i := len(r) - 1; i >= 0; i-- {
 		if r[i][0] == e {
 			item, err := newFileItem(r[i][3])
 			if err != nil {
